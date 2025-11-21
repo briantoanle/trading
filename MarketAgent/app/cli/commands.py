@@ -1,6 +1,6 @@
 import time
 import typer
-from rich.console import Console
+from rich.console import Console, Group
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.status import Status
@@ -51,7 +51,10 @@ def get_confidence_style(confidence: float) -> str:
 
 # --- UI Generation ---
 def generate_dashboard_layout(
-    signal: TradeSignal, market_data: MarketData, news: list[NewsItem]
+    signal: TradeSignal,
+    market_data: MarketData,
+    news: list[NewsItem],
+    chart: str | None = None,
 ) -> Layout:
     """Creates the Rich layout for the analysis command."""
     layout = Layout()
@@ -79,7 +82,18 @@ def generate_dashboard_layout(
     reality_text = Text()
     reality_text.append(f"RSI: {market_data.rsi:.2f}\n", style=STYLE_THEME["reality"])
     reality_text.append(f"EMA (50): ${market_data.ema_50:.2f}", style=STYLE_THEME["reality"])
-    layout["right"].update(Panel(reality_text, title="Reality (Technicals)", border_style=STYLE_THEME["panel"]))
+
+    right_panel_content = [reality_text]
+    if chart:
+        right_panel_content.append(Text(chart, style=STYLE_THEME["reality"]))
+
+    layout["right"].update(
+        Panel(
+            Group(*right_panel_content),
+            title="Reality (Technicals)",
+            border_style=STYLE_THEME["panel"],
+        )
+    )
     
     # Footer (AI Signal)
     signal_style = get_signal_style(signal.signal)
@@ -145,6 +159,35 @@ def analyze(
         
     signal, market_data, news = analysis_result
     layout = generate_dashboard_layout(signal, market_data, news)
+    console.print(layout)
+
+
+@app.command(name="llm-trade")
+def llm_trade(
+    ticker: Annotated[str, typer.Argument(help="Ticker to analyze and visualize (e.g., 'AAPL').")],
+    mock: Annotated[
+        bool, typer.Option(help="Use mock data instead of calling the live API.")
+    ] = True,
+):
+    """
+    Run LLM-guided analysis and render a lightweight price visualization.
+    """
+
+    status = Status(
+        f"[bold green]Scouting LLM trade setup for {ticker.upper()}...[/bold green]",
+        spinner="dots",
+    )
+    status.start()
+
+    analysis_result = engine.analyze_and_visualize(ticker, mock=mock)
+    status.stop()
+
+    if not analysis_result:
+        console.print(f"[bold red]Could not perform analysis for {ticker}.[/bold red]")
+        raise typer.Exit(1)
+
+    signal, market_data, news, chart = analysis_result
+    layout = generate_dashboard_layout(signal, market_data, news, chart=chart)
     console.print(layout)
 
 @app.command()
