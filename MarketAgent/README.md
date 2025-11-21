@@ -87,8 +87,18 @@ The terminal will display a full-screen dashboard.
 - The **header** shows "TSLA", its current price, and a "Trend" indicator (e.g., "Up" in green).
 - The **main area** is split into two panels:
     - **Narrative (Recent News)** on the left shows a list of recent headlines.
-    - **Reality (Technicals)** on the right displays the current RSI and 50-period EMA.
+    - **Reality (Technicals)** on the right displays the current RSI and 50-period EMA. When using the LLM trade command below, a lightweight ASCII price chart is also shown here to visualize the recent trend.
 - The **footer** ("Hedge Fund Manager's Take") provides the AI's conclusion: a "Hold" signal in yellow, a confidence score, and a cynical reasoning like "Price is consolidating... waiting for a clearer catalyst."
+
+### Ask the LLM for a Trade and Visualize It
+
+Guide the LLM to generate a trade signal and view a compact price visualization that highlights the latest close against the 50-day EMA.
+
+```bash
+poetry run market-agent llm-trade msft --mock
+```
+
+The output mirrors the single-ticker dashboard but adds a sparkline-style chart in the "Reality" panel so you can quickly see how price is moving relative to the EMA.
 
 ### View the Live Dashboard
 

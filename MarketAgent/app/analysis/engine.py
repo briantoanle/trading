@@ -13,6 +13,7 @@ from app.services.market import MarketFetcher
 from app.services.news import NewsFetcher
 from app.services.tracker import PortfolioManager
 from app.utils.resilience import clean_json_response, retry_api_call
+from app.utils.visualization import render_price_chart
 
 
 class AnalysisEngine:
@@ -135,6 +136,34 @@ class AnalysisEngine:
         except Exception as e:
             logger.exception(f"An unexpected error occurred during analysis: {e}")
             return None
+
+    def analyze_and_visualize(
+        self,
+        ticker: str,
+        mock: bool = False,
+        market_data: Optional[MarketData] = None,
+        news: Optional[List[NewsItem]] = None,
+        use_provided_data: bool = False,
+    ) -> Optional[Tuple[TradeSignal, MarketData, List[NewsItem], str]]:
+        """
+        Runs an LLM-guided analysis and returns a simple visualization of price action.
+        """
+
+        analysis = self.analyze_ticker(
+            ticker,
+            mock=mock,
+            market_data=market_data,
+            news=news,
+            use_provided_data=use_provided_data,
+        )
+
+        if not analysis:
+            return None
+
+        signal, resolved_market_data, resolved_news = analysis
+        chart = render_price_chart(resolved_market_data)
+
+        return signal, resolved_market_data, resolved_news, chart
 
     def _mock_analysis(self, ticker: str) -> Tuple[TradeSignal, MarketData, List[NewsItem]]:
         # ... (Keep existing implementation) ...
