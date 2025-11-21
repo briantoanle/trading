@@ -27,13 +27,13 @@ You can install MarketAgent using either Poetry or pip.
 
 ### Poetry (Recommended)
 
-1.  **Clone the repository:**
-    ```bashpip
+1.  **Clone the repository (Python 3.10+):**
+    ```bash
     git clone <repository-url>
     cd MarketAgent
     ```
 2.  **Install dependencies:**
-    This will create a virtual environment and install all required packages.
+    This will create a virtual environment and install all required packages defined in `pyproject.toml`.
     ```bash
     poetry install
     ```
@@ -51,6 +51,8 @@ You can install MarketAgent using either Poetry or pip.
     ```bash
     pip install -r requirements.txt
     ```
+
+> To refresh `requirements.txt` from Poetry, run `poetry export --without-hashes -f requirements.txt -o requirements.txt`.
 
 ## Configuration
 
