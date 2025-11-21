@@ -7,9 +7,11 @@ from loguru import logger
 from openai import APIError, OpenAI
 
 from app.models.schemas import MarketData, NewsItem, TradeSignal
+from app.core.config import settings
+from app.services.alerts import TelegramNotifier
 from app.services.market import MarketFetcher
 from app.services.news import NewsFetcher
-from app.core.config import settings
+from app.services.tracker import PortfolioManager
 from app.utils.resilience import clean_json_response, retry_api_call
 
 
@@ -23,6 +25,9 @@ class AnalysisEngine:
         self.market_fetcher = MarketFetcher()
         self.news_fetcher = NewsFetcher()
         self.client = OpenAI(
+        self.portfolio_manager = PortfolioManager()
+        self.notifier = TelegramNotifier()
+        self.client = openai.OpenAI(
             base_url=settings.nvidia_api_base,
             api_key=settings.nvidia_api_key,
         )
@@ -58,24 +63,41 @@ class AnalysisEngine:
         return f"## Market Analysis Request\n\n### Technicals\n{tech_analysis}\n### Sentiment\n{news_headlines}"
 
     def analyze_ticker(
-            self, ticker: str, mock: bool = False
+            self,
+            ticker: str,
+            mock: bool = False,
+            market_data: Optional[MarketData] = None,
+            news: Optional[List[NewsItem]] = None,
+            use_provided_data: bool = False,
     ) -> Optional[Tuple[TradeSignal, MarketData, List[NewsItem]]]:
         """
         Performs a full analysis of a given ticker and returns a trade signal.
         """
         if mock:
             logger.info(f"Running MOCK analysis for {ticker}")
-            return self._mock_analysis(ticker)
+            mock_result = self._mock_analysis(ticker)
+            if mock_result:
+                signal, market_data, _ = mock_result
+                self.portfolio_manager.log_signal(signal, market_data)
+            return mock_result
 
-        # These calls now have automatic retries via the decorators in the classes
-        market_data = self.market_fetcher.fetch_market_data(ticker)
-        if not market_data:
-            logger.error(f"Analysis aborted: Market data unavailable for {ticker}")
-            return None
+        if use_provided_data:
+            if not market_data:
+                logger.error(
+                    "Analysis aborted: Provided data flag set but market data is missing."
+                )
+                return None
+            news_items = news or []
+        else:
+            # These calls now have automatic retries via the decorators in the classes
+            market_data = self.market_fetcher.fetch_market_data(ticker)
+            if not market_data:
+                logger.error(f"Analysis aborted: Market data unavailable for {ticker}")
+                return None
 
-        news = self.news_fetcher.fetch_news(ticker)
+            news_items = self.news_fetcher.fetch_news(ticker)
 
-        user_prompt = self._format_context(market_data, news)
+        user_prompt = self._format_context(market_data, news_items)
         system_prompt = self._construct_system_prompt()
 
         try:
@@ -101,6 +123,11 @@ class AnalysisEngine:
 
             signal = TradeSignal(**signal_data)
             logger.success(f"Generated signal for {ticker}: {signal.signal}")
+            self.portfolio_manager.log_signal(signal, market_data)
+
+            if signal.confidence > 0.80:
+                self.notifier.send_alert(signal, ticker)
+
             return signal, market_data, news
 
         except APIError as e:

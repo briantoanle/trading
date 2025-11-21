@@ -1,12 +1,13 @@
 [tool.poetry]
-name = "market-agent"
+name = "MarketAgent"
 version = "0.1.0"
 description = "Autonomous stock market analysis CLI using LLMs."
-authors = ["Your Name <you@example.com>"]
+authors = ["Toan Le <briantoanle@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 typer = {extras = ["all"], version = "^0.12.3"}
 rich = "^13.7.1"
 pydantic = "^2.8.2"
@@ -20,6 +21,16 @@ duckduckgo-search = "^6.1.0"
 pydantic-settings = "^2.3.0"
 loguru = "^0.7.2"
 tenacity = "^8.2.3"
+pydantic = "^2.7.1"
+pandas = "^2.3.3"
+openai = "^1.25.2"
+yfinance = "^0.2.37"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+pandas-ta = { url = "https://www.pandas-ta.dev/assets/zip/pandas_ta-0.4.19b0.zip" }
+duckduckgo-search = "5.3.1b1"
+pydantic-settings = "^2.12.0"
+sqlmodel = "^0.0.22"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -32,4 +43,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-market-agent = "app.main:app"
+MarketAgent = "app.main:app"
+

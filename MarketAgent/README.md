@@ -28,7 +28,7 @@ You can install MarketAgent using either Poetry or pip.
 ### Poetry (Recommended)
 
 1.  **Clone the repository:**
-    ```bash
+    ```bashpip
     git clone <repository-url>
     cd MarketAgent
     ```
