@@ -57,7 +57,12 @@ class AnalysisEngine:
         return f"## Market Analysis Request\n\n### Technicals\n{tech_analysis}\n### Sentiment\n{news_headlines}"
 
     def analyze_ticker(
-            self, ticker: str, mock: bool = False
+            self,
+            ticker: str,
+            mock: bool = False,
+            market_data: Optional[MarketData] = None,
+            news: Optional[List[NewsItem]] = None,
+            use_provided_data: bool = False,
     ) -> Optional[Tuple[TradeSignal, MarketData, List[NewsItem]]]:
         """
         Performs a full analysis of a given ticker and returns a trade signal.
@@ -66,15 +71,23 @@ class AnalysisEngine:
             logger.info(f"Running MOCK analysis for {ticker}")
             return self._mock_analysis(ticker)
 
-        # These calls now have automatic retries via the decorators in the classes
-        market_data = self.market_fetcher.fetch_market_data(ticker)
-        if not market_data:
-            logger.error(f"Analysis aborted: Market data unavailable for {ticker}")
-            return None
+        if use_provided_data:
+            if not market_data:
+                logger.error(
+                    "Analysis aborted: Provided data flag set but market data is missing."
+                )
+                return None
+            news_items = news or []
+        else:
+            # These calls now have automatic retries via the decorators in the classes
+            market_data = self.market_fetcher.fetch_market_data(ticker)
+            if not market_data:
+                logger.error(f"Analysis aborted: Market data unavailable for {ticker}")
+                return None
 
-        news = self.news_fetcher.fetch_news(ticker)
+            news_items = self.news_fetcher.fetch_news(ticker)
 
-        user_prompt = self._format_context(market_data, news)
+        user_prompt = self._format_context(market_data, news_items)
         system_prompt = self._construct_system_prompt()
 
         try:
@@ -100,7 +113,7 @@ class AnalysisEngine:
 
             signal = TradeSignal(**signal_data)
             logger.success(f"Generated signal for {ticker}: {signal.signal}")
-            return signal, market_data, news
+            return signal, market_data, news_items
 
         except openai.APIError as e:
             logger.error(f"NVIDIA API Error: {e}")
