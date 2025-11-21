@@ -11,11 +11,13 @@ from typing_extensions import Annotated
 
 from app.analysis.engine import AnalysisEngine
 from app.models.schemas import TradeSignal, MarketData, NewsItem
+from app.services.tracker import PortfolioManager
 
 # --- Setup ---
 app = typer.Typer(name="market-agent", add_completion=False)
 console = Console()
 engine = AnalysisEngine()
+portfolio_manager = PortfolioManager()
 
 # --- Styles ---
 STYLE_THEME = {
@@ -96,6 +98,32 @@ def generate_dashboard_layout(
     
     return layout
 
+
+def generate_history_panel(limit: int = 5) -> Panel:
+    history_table = Table(border_style=STYLE_THEME["panel"], show_edge=False)
+    history_table.add_column("Time", style="dim", width=16)
+    history_table.add_column("Ticker", style=STYLE_THEME["ticker"], no_wrap=True)
+    history_table.add_column("Signal", justify="center")
+    history_table.add_column("Confidence", justify="right")
+    history_table.add_column("Price", justify="right")
+
+    history_entries = portfolio_manager.get_recent_signals(limit=limit)
+
+    if not history_entries:
+        history_table.add_row("No signals yet", "-", "-", "-", "-")
+    else:
+        for entry in history_entries:
+            signal_style = get_signal_style(entry.signal)
+            history_table.add_row(
+                entry.timestamp.strftime("%Y-%m-%d %H:%M"),
+                entry.ticker.upper(),
+                Text(entry.signal, style=signal_style),
+                f"{entry.confidence:.2%}",
+                f"${entry.price_at_signal:.2f}",
+            )
+
+    return Panel(history_table, title="Recent Signal History", border_style=STYLE_THEME["panel"])
+
 # --- Typer Commands ---
 @app.command()
 def analyze(
@@ -156,15 +184,25 @@ def dashboard(
 
     results = {ticker: None for ticker in WATCHLIST}
 
-    with Live(generate_table(results), refresh_per_second=4, screen=True) as live:
+    def generate_dashboard(results: dict) -> Layout:
+        layout = Layout()
+        layout.split_column(
+            Layout(name="table", ratio=3),
+            Layout(name="history", size=12),
+        )
+        layout["table"].update(generate_table(results))
+        layout["history"].update(generate_history_panel())
+        return layout
+
+    with Live(generate_dashboard(results), refresh_per_second=4, screen=True) as live:
         while True:
             for ticker in WATCHLIST:
                 results[ticker] = engine.analyze_ticker(ticker, mock=mock)
-                live.update(generate_table(results))
-            
+                live.update(generate_dashboard(results))
+
             # Countdown for 5 minutes
             for i in range(300, 0, -1):
-                live.update(generate_table(results))
+                live.update(generate_dashboard(results))
                 # You could add a status to the table title here
                 time.sleep(1)
 
