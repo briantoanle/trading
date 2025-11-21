@@ -4,6 +4,15 @@ MarketAgent is a professional, scalable command-line interface (CLI) tool for au
 
 The application is built with a modern Python stack, including Typer for the CLI, Rich for beautiful terminal UI, Pydantic for data validation, and a modular architecture for easy extension.
 
+## Codebase Overview
+
+- **app/analysis** – core logic that orchestrates LLM calls and turns market/news context into trade signals.
+- **app/services** – integration layer for external data such as market prices (`market.py`) and news search (`news.py`).
+- **app/cli** – Typer-powered commands and Rich layouts that render analysis results in the terminal.
+- **app/models** – Pydantic schemas that validate and normalize market data, news items, and generated trade signals.
+- **app/utils** – shared utilities for logging and retry logic.
+- **tests/** – placeholder for automated tests.
+
 ## Features
 
 - **AI-Powered Analysis**: Uses an LLM (compatible with NVIDIA NIM) to generate trading signals (Buy/Sell/Hold), confidence scores, and reasoning.
