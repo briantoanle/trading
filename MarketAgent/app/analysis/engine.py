@@ -1,9 +1,10 @@
 import json
+from datetime import datetime
 from typing import List, Optional, Tuple
-import openai
+
 import pandas as pd
-from datetime import datetime, timedelta
 from loguru import logger
+from openai import APIError, OpenAI
 
 from app.models.schemas import MarketData, NewsItem, TradeSignal
 from app.services.market import MarketFetcher
@@ -21,7 +22,7 @@ class AnalysisEngine:
         """Initializes the AnalysisEngine and its components."""
         self.market_fetcher = MarketFetcher()
         self.news_fetcher = NewsFetcher()
-        self.client = openai.OpenAI(
+        self.client = OpenAI(
             base_url=settings.nvidia_api_base,
             api_key=settings.nvidia_api_key,
         )
@@ -102,7 +103,7 @@ class AnalysisEngine:
             logger.success(f"Generated signal for {ticker}: {signal.signal}")
             return signal, market_data, news
 
-        except openai.APIError as e:
+        except APIError as e:
             logger.error(f"NVIDIA API Error: {e}")
             return None
         except Exception as e:
