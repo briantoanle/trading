@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 
 from app.models.schemas import MarketData, NewsItem, TradeSignal
+from app.services.alerts import TelegramNotifier
 from app.services.market import MarketFetcher
 from app.services.news import NewsFetcher
 from app.core.config import settings
@@ -21,6 +22,7 @@ class AnalysisEngine:
         """Initializes the AnalysisEngine and its components."""
         self.market_fetcher = MarketFetcher()
         self.news_fetcher = NewsFetcher()
+        self.notifier = TelegramNotifier()
         self.client = openai.OpenAI(
             base_url=settings.nvidia_api_base,
             api_key=settings.nvidia_api_key,
@@ -113,7 +115,11 @@ class AnalysisEngine:
 
             signal = TradeSignal(**signal_data)
             logger.success(f"Generated signal for {ticker}: {signal.signal}")
-            return signal, market_data, news_items
+
+            if signal.confidence > 0.80:
+                self.notifier.send_alert(signal, ticker)
+
+            return signal, market_data, news
 
         except openai.APIError as e:
             logger.error(f"NVIDIA API Error: {e}")
