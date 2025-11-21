@@ -19,6 +19,7 @@ requests = "^2.31.0"
 pandas-ta = { url = "https://www.pandas-ta.dev/assets/zip/pandas_ta-0.4.19b0.zip" }
 duckduckgo-search = "5.3.1b1"
 pydantic-settings = "^2.12.0"
+sqlmodel = "^0.0.22"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

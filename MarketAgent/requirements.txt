@@ -13,3 +13,4 @@ duckduckgo-search==5.3.1b1
 pydantic-settings==2.12.0
 loguru
 tenacity
+sqlmodel==0.0.22

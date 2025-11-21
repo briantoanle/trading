@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 from loguru import logger
 
 from app.models.schemas import MarketData, NewsItem, TradeSignal
+from app.core.config import settings
 from app.services.alerts import TelegramNotifier
 from app.services.market import MarketFetcher
 from app.services.news import NewsFetcher
-from app.core.config import settings
+from app.services.tracker import PortfolioManager
 from app.utils.resilience import clean_json_response, retry_api_call
 
 
@@ -22,6 +23,7 @@ class AnalysisEngine:
         """Initializes the AnalysisEngine and its components."""
         self.market_fetcher = MarketFetcher()
         self.news_fetcher = NewsFetcher()
+        self.portfolio_manager = PortfolioManager()
         self.notifier = TelegramNotifier()
         self.client = openai.OpenAI(
             base_url=settings.nvidia_api_base,
@@ -71,7 +73,11 @@ class AnalysisEngine:
         """
         if mock:
             logger.info(f"Running MOCK analysis for {ticker}")
-            return self._mock_analysis(ticker)
+            mock_result = self._mock_analysis(ticker)
+            if mock_result:
+                signal, market_data, _ = mock_result
+                self.portfolio_manager.log_signal(signal, market_data)
+            return mock_result
 
         if use_provided_data:
             if not market_data:
@@ -115,6 +121,7 @@ class AnalysisEngine:
 
             signal = TradeSignal(**signal_data)
             logger.success(f"Generated signal for {ticker}: {signal.signal}")
+            self.portfolio_manager.log_signal(signal, market_data)
 
             if signal.confidence > 0.80:
                 self.notifier.send_alert(signal, ticker)
