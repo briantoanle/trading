@@ -24,10 +24,9 @@ class AnalysisEngine:
         """Initializes the AnalysisEngine and its components."""
         self.market_fetcher = MarketFetcher()
         self.news_fetcher = NewsFetcher()
-        self.client = OpenAI(
         self.portfolio_manager = PortfolioManager()
         self.notifier = TelegramNotifier()
-        self.client = openai.OpenAI(
+        self.client = OpenAI(
             base_url=settings.nvidia_api_base,
             api_key=settings.nvidia_api_key,
         )
@@ -128,7 +127,7 @@ class AnalysisEngine:
             if signal.confidence > 0.80:
                 self.notifier.send_alert(signal, ticker)
 
-            return signal, market_data, news
+            return signal, market_data, news_items
 
         except APIError as e:
             logger.error(f"NVIDIA API Error: {e}")
