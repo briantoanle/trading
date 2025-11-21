@@ -1,0 +1,15 @@
+# Generated from pyproject.toml
+
+typer[all]==0.12.3
+rich==13.7.1
+pydantic==2.7.1
+pandas==2.2.2
+openai==1.25.2
+yfinance==0.2.37
+python-dotenv==1.0.1
+requests==2.31.0
+pandas-ta==0.3.14b0
+duckduckgo-search==5.3.1b1
+pydantic-settings==2.2.1
+loguru
+tenacity
