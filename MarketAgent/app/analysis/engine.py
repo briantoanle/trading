@@ -3,11 +3,14 @@ from typing import List, Optional, Tuple
 import openai
 import pandas as pd
 from datetime import datetime, timedelta
+from loguru import logger
 
 from app.models.schemas import MarketData, NewsItem, TradeSignal
 from app.services.market import MarketFetcher
 from app.services.news import NewsFetcher
 from app.core.config import settings
+from app.utils.resilience import clean_json_response, retry_api_call
+
 
 class AnalysisEngine:
     """
@@ -24,12 +27,7 @@ class AnalysisEngine:
         )
 
     def _construct_system_prompt(self) -> str:
-        """
-        Builds the system prompt for the "Cynical Trader" persona.
-
-        Returns:
-            str: The system prompt string.
-        """
+        # ... (Keep existing implementation) ...
         return (
             "You are a cynical, quantitative hedge fund trader. Your focus is on risk aversion. "
             "You are analytical, data-driven, and deeply skeptical of market hype. "
@@ -41,17 +39,7 @@ class AnalysisEngine:
         )
 
     def _format_context(self, market_data: MarketData, news: List[NewsItem]) -> str:
-        """
-        Formats market data and news into a strict text block for the LLM.
-
-        Args:
-            market_data (MarketData): The market data for the ticker.
-            news (List[NewsItem]): A list of recent news items.
-
-        Returns:
-            str: A formatted string containing all the context for the LLM.
-        """
-        # Format technical indicators
+        # ... (Keep existing implementation) ...
         tech_analysis = (
             f"Ticker: {market_data.ticker}\n"
             f"Current Price: ${market_data.current_price:.2f}\n"
@@ -59,7 +47,6 @@ class AnalysisEngine:
             f"50-Period EMA: {market_data.ema_50:.2f}\n"
         )
 
-        # Format news
         news_headlines = "Recent Headlines:\n"
         if news:
             for item in news:
@@ -70,25 +57,19 @@ class AnalysisEngine:
         return f"## Market Analysis Request\n\n### Technicals\n{tech_analysis}\n### Sentiment\n{news_headlines}"
 
     def analyze_ticker(
-        self, ticker: str, mock: bool = False
+            self, ticker: str, mock: bool = False
     ) -> Optional[Tuple[TradeSignal, MarketData, List[NewsItem]]]:
         """
         Performs a full analysis of a given ticker and returns a trade signal.
-
-        Args:
-            ticker (str): The stock ticker to analyze.
-            mock (bool): If True, bypass the API and return a mock signal.
-
-        Returns:
-            Optional[Tuple[TradeSignal, MarketData, List[NewsItem]]]: A tuple containing
-            the signal, market data, and news, or None if analysis fails.
         """
         if mock:
+            logger.info(f"Running MOCK analysis for {ticker}")
             return self._mock_analysis(ticker)
 
+        # These calls now have automatic retries via the decorators in the classes
         market_data = self.market_fetcher.fetch_market_data(ticker)
         if not market_data:
-            print(f"Could not retrieve market data for {ticker}.")
+            logger.error(f"Analysis aborted: Market data unavailable for {ticker}")
             return None
 
         news = self.news_fetcher.fetch_news(ticker)
@@ -97,59 +78,55 @@ class AnalysisEngine:
         system_prompt = self._construct_system_prompt()
 
         try:
+            logger.debug(f"Sending request to LLM for {ticker}...")
             response = self.client.chat.completions.create(
-                model="meta/llama3-8b-instruct",  # Example model
+                model="meta/llama3-70b-instruct",  # Updated to 70B for better reasoning
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.3,
-                max_tokens=256,
-                response_format={"type": "json_object"},
+                max_tokens=512,
+                # response_format={"type": "json_object"}, # Uncomment if model supports it strict
             )
 
             response_content = response.choices[0].message.content
             if not response_content:
+                logger.error("LLM returned empty content.")
                 return None
 
-            signal_data = json.loads(response_content)
+            # Use the robust cleaner instead of raw json.loads
+            signal_data = clean_json_response(response_content)
+
             signal = TradeSignal(**signal_data)
+            logger.success(f"Generated signal for {ticker}: {signal.signal}")
             return signal, market_data, news
 
         except openai.APIError as e:
-            print(f"NVIDIA API Error: {e}")
-            return None
-        except json.JSONDecodeError:
-            print(f"Failed to decode LLM response into JSON.")
+            logger.error(f"NVIDIA API Error: {e}")
             return None
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            logger.exception(f"An unexpected error occurred during analysis: {e}")
             return None
 
-    def _mock_analysis(
-        self, ticker: str
-    ) -> Tuple[TradeSignal, MarketData, List[NewsItem]]:
-        """
-        Returns a hardcoded, dummy analysis package for testing.
-
-        Args:
-            ticker (str): The ticker being mocked.
-
-        Returns:
-            Tuple[TradeSignal, MarketData, List[NewsItem]]: A dummy analysis package.
-        """
+    def _mock_analysis(self, ticker: str) -> Tuple[TradeSignal, MarketData, List[NewsItem]]:
+        # ... (Keep existing implementation) ...
+        # Just verify indentation is correct when pasting back
+        # You can leave the rest of this function exactly as it was
         mock_signal = TradeSignal(
             signal="Hold",
             confidence=0.65,
-            reasoning=f"Mock analysis for {ticker}: Price is consolidating near the 50-day EMA. RSI is neutral. "
-            "Waiting for a clearer catalyst before taking a position.",
+            reasoning=f"Mock analysis for {ticker}: Price is consolidating near the 50-day EMA. RSI is neutral. Waiting for a clearer catalyst.",
             stop_loss=None,
         )
-        
-        # Create a dummy DataFrame for OHLCV
+
         dummy_df = pd.DataFrame({
             'Open': [150], 'High': [152], 'Low': [149], 'Close': [151], 'Volume': [1000000]
         })
+
+        # Fix: Ensure column names match what schema expects or what market.py produces if mocked
+        dummy_df['RSI_14'] = 55.0
+        dummy_df['EMA_50'] = 150.5
 
         mock_market_data = MarketData(
             ticker=ticker,
@@ -161,17 +138,11 @@ class AnalysisEngine:
 
         mock_news = [
             NewsItem(
-                headline=f"{ticker} announces new AI chip, investors are cautiously optimistic.",
-                url="https://example.com/news1",
-                source="Mock News Service",
-                date=datetime.now() - timedelta(hours=3),
-            ),
-            NewsItem(
-                headline="Analysts debate future growth prospects for the semiconductor industry.",
-                url="https://example.com/news2",
-                source="Fauxancial Times",
-                date=datetime.now() - timedelta(hours=8),
-            ),
+                headline=f"{ticker} announces new AI chip.",
+                url="https://example.com",
+                source="Mock News",
+                date=datetime.now(),
+            )
         ]
 
         return mock_signal, mock_market_data, mock_news
