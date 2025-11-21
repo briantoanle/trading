@@ -23,9 +23,10 @@ The application is built with a modern Python stack, including Typer for the CLI
 
 ## Installation
 
-You can install MarketAgent using either Poetry or pip.
+You can install MarketAgent using Poetry, or skip Poetry entirely and rely on standard `venv` + `pip` (or `uv`) if Poetry is g
+iving you trouble.
 
-### Poetry (Recommended)
+### Option A: Poetry
 
 1.  **Clone the repository (Python 3.10+):**
     ```bash
@@ -37,22 +38,33 @@ You can install MarketAgent using either Poetry or pip.
     ```bash
     poetry install
     ```
-
-### pip
-
-1.  **Clone the repository and create a virtual environment:**
+3.  **Run commands through Poetry:**
     ```bash
-    git clone <repository-url>
-    cd MarketAgent
-    python -m venv venv
-    source venv/bin/activate
+    poetry run market-agent --help
     ```
-2.  **Install from `requirements.txt`:**
+
+### Option B: Pure `venv` + `pip` (no Poetry)
+
+1.  **Create and activate a virtual environment:**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # Windows: .venv\Scripts\activate
+    ```
+2.  **Install runtime dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
+3.  **(Optional) Install dev tooling for tests/docs:**
+    ```bash
+    pip install -r requirements-dev.txt
+    ```
+4.  **Run the CLI directly:**
+    ```bash
+    python -m app.main --help
+    ```
 
-> To refresh `requirements.txt` from Poetry, run `poetry export --without-hashes -f requirements.txt -o requirements.txt`.
+> To refresh `requirements.txt` from Poetry, run `poetry export --without-hashes -f requirements.txt -o requirements.txt`. Dev
+>  dependencies live in `requirements-dev.txt` and are safe to omit for production.
 
 ## Configuration
 
