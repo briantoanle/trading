@@ -31,5 +31,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-MarketAgent = "app.main:app"
+market-agent = "app.main:app"
 
